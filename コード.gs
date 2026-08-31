@@ -13,8 +13,8 @@
  */
 
 /* ====== 設定 ====== */
-const TOKEN  = "××××××";               // index.html / teacher.html の SEND_TOKEN と同じ
-const SECRET = "hakone-2026-taku-secret";  // ログイン券の生成用。長い文字列にして外部に出さない
+const TOKEN  = "";                     // 自分で決めた合言葉。index.html / teacher.html の SEND_TOKEN と同じ
+const SECRET = "";                         // ログイン券の生成用。長くランダムな文字列を自分で生成する（外部に出さない）
 const TZ     = "Asia/Tokyo";
 const QUESTION_FOLDER_ID = "";             // 問題CSVを置くDriveフォルダのID（URLの /folders/ の後ろ）
 const LATE_DAYS = 7;                       // 締切後、何日まで「時間外」として受け付けるか
@@ -71,6 +71,7 @@ function ensureSheet_(ss, name, header) {
 function doPost(e) {
   let p;
   try { p = JSON.parse(e.postData.contents); } catch (err) { return textOut_("NG:json"); }
+  if (!TOKEN || !SECRET) return textOut_("NG:setup");   // TOKEN と SECRET を設定してから公開する
   if (TOKEN && p.token !== TOKEN) return textOut_("NG:token");
   if (p.action === "login")    return handleLogin_(p);
   if (p.action === "saveTask") return handleSaveTask_(p);
