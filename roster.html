@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ステップ学習アプリ 名前照合ツール（先生用・オフライン）</title>
+<style>
+:root{
+  --ink:#1b2430; --ink-2:#55606d; --line:#dfe4ea; --bg:#f4f6f9; --card:#fff;
+  --accent:#7a4fbf; --accent-soft:#f1eafb; --ok:#1a7f4b; --ng:#c0392b;
+  --shadow:0 1px 2px rgba(20,30,45,.06), 0 8px 24px rgba(20,30,45,.06);
+}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-size:15px;line-height:1.7;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;}
+header{background:var(--card);border-bottom:3px solid var(--accent);}
+.header-inner{max-width:1040px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.logo{font-weight:800;font-size:18px;}
+.logo span{color:var(--accent);}
+.offline{margin-left:auto;font-size:13px;color:var(--ok);font-weight:700;}
+.wrap{max-width:1040px;margin:0 auto;padding:16px 16px 64px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+h2{font-size:17px;margin:0 0 12px;}
+h3{font-size:14px;margin:22px 0 8px;color:var(--ink-2);}
+.muted{color:var(--ink-2);font-size:13px;}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px;}
+.btn.sub{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:600;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;background:#fbfcfe;}
+.drop.over{border-color:var(--accent);background:var(--accent-soft);}
+.notice{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14px;margin-top:12px;}
+.notice.error{border-color:var(--ng);background:#fdeceb;color:#7d241c;}
+.notice.ok{border-color:var(--ok);background:#e8f6ee;color:#14603a;}
+.hidden{display:none !important;}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+th,td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;white-space:nowrap;}
+th{background:#f7f9fc;font-size:12px;color:var(--ink-2);position:sticky;top:0;}
+.scroll{overflow:auto;max-height:460px;}
+.mark-ok{color:var(--ok);font-weight:800;}
+.mark-ng{color:var(--ng);font-weight:800;}
+label.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;}
+input[type=file]{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">ステップ学習 <span>名前照合ツール</span></div>
+    <div class="offline">通信しません（この端末の中だけで処理します）</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>このツールについて</h2>
+    <p class="muted" style="margin-top:0">
+      クラウド側には氏名を保存していません。ID・学年・組・出席番号だけが記録されています。
+      このツールは、先生の端末にある名簿と、ダウンロードした回答データを<b>この端末の中だけで</b>突き合わせ、氏名を付けて表示します。
+      ファイルはどこにも送信されません。ページを閉じれば消えます。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1. 名簿を読み込む（ID と 氏名）</h2>
+    <div class="drop" id="drop-roster">
+      <p class="muted" style="margin-top:0">CSVをここにドラッグするか、ボタンから選んでください。<br>
+      1行目に見出しが必要です。<b>ID</b> と <b>氏名</b> の列があれば、ほかの列があっても構いません。</p>
+      <button class="btn" onclick="document.getElementById('file-roster').click()">名簿ファイルを選ぶ</button>
+      <input type="file" id="file-roster" accept=".csv,text/csv">
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="chk"><input type="checkbox" id="keep-roster" onchange="onKeepChange()"> この端末に名簿を保存する</label>
+      <button class="btn sub" onclick="clearRoster()">保存した名簿を消す</button>
+    </div>
+    <p class="muted" style="margin:6px 0 0">共用端末では保存しないでください。保存すると、次に開いたときも名簿が残ります。</p>
+    <div id="roster-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. 回答データを読み込む</h2>
+    <p class="muted" style="margin-top:0">スプレッドシートの <b>回答</b> シートを「ファイル → ダウンロード → カンマ区切り形式(.csv)」で保存し、そのファイルを読み込みます。</p>
+    <div class="drop" id="drop-answer">
+      <button class="btn" onclick="document.getElementById('file-answer').click()">回答ファイルを選ぶ</button>
+      <input type="file" id="file-answer" accept=".csv,text/csv">
+    </div>
+    <div id="answer-msg"></div>
+  </div>
+
+  <div class="card hidden" id="out-card">
+    <h2>3. 結果</h2>
+    <div class="row">
+      <button class="btn" onclick="downloadJoined()">氏名つきCSVを保存</button>
+      <button class="btn sub" onclick="downloadSummary()">生徒別サマリーを保存</button>
+      <span class="muted" id="out-info"></span>
+    </div>
+
+    <h3>生徒別サマリー</h3>
+    <div class="scroll"><table id="summary-table"></table></div>
+
+    <h3>明細（先頭200行）</h3>
+    <div class="scroll"><table id="detail-table"></table></div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ROSTER_KEY = "step-learning-local-roster";
+
+let ROSTER = {};      // { ID: 氏名 }
+let ANS_HEAD = [];    // 回答CSVの見出し
+let ANS_ROWS = [];    // 回答CSVのデータ行
+let JOINED = null;    // { head:[], rows:[[]] }
+
+function msg(box, html, kind){
+  $(box).innerHTML = html ? "<div class='notice"+(kind?" "+kind:"")+"'>"+html+"</div>" : "";
+}
+
+/* ============ CSV ============ */
+function decodeBytes(buf){
+  const b=new Uint8Array(buf);
+  if(b[0]===0xEF&&b[1]===0xBB&&b[2]===0xBF) return new TextDecoder("utf-8").decode(b.subarray(3));
+  try{ return new TextDecoder("utf-8",{fatal:true}).decode(b); }
+  catch(e){ try{ return new TextDecoder("shift_jis").decode(b); }catch(e2){ return new TextDecoder("utf-8").decode(b); } }
+}
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  text=String(text).replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=c; }
+    else{
+      if(c==='"') q=true;
+      else if(c===","){ row.push(cell); cell=""; }
+      else if(c==="\n"){ row.push(cell); rows.push(row); row=[]; cell=""; }
+      else cell+=c;
+    }
+  }
+  if(cell!=="" || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(v=>String(v).trim()!==""));
+}
+function csvCell(v){ const s=String(v==null?"":v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function downloadCSV(name, rows){
+  const body=rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const blob=new Blob(["\uFEFF"+body],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function readFile(file, cb, onErr){
+  const r=new FileReader();
+  r.onload=e=>cb(decodeBytes(e.target.result));
+  r.onerror=()=>onErr();
+  r.readAsArrayBuffer(file);
+}
+function headIndex(head, names){
+  for(const n of names){
+    const i=head.findIndex(h=>String(h).replace(/^\uFEFF/,"").trim()===n);
+    if(i>=0) return i;
+  }
+  return -1;
+}
+
+/* ============ 名簿 ============ */
+function loadRosterText(text, fname){
+  const rows=parseCSV(text);
+  if(rows.length<2){ msg("roster-msg","中身が空です。",  "error"); return; }
+  const head=rows[0];
+  const iId=headIndex(head,["ID","id","児童生徒ID","生徒ID"]);
+  const iName=headIndex(head,["氏名","名前","生徒名","児童生徒名"]);
+  if(iId<0||iName<0){ msg("roster-msg","見出しに <b>ID</b> と <b>氏名</b> の列が必要です。","error"); return; }
+  const map={}; let n=0, dup=0;
+  for(let r=1;r<rows.length;r++){
+    const id=String(rows[r][iId]||"").trim(), nm=String(rows[r][iName]||"").trim();
+    if(!id||!nm) continue;
+    if(map[id]) dup++;
+    map[id]=nm; n++;
+  }
+  if(!n){ msg("roster-msg","読み取れる行がありませんでした。","error"); return; }
+  ROSTER=map;
+  if($("keep-roster").checked) saveRoster();
+  msg("roster-msg",esc(fname||"")+" から <b>"+n+"人</b> を読み込みました。"+(dup?"（同じIDが"+dup+"件あり、あとの行で上書きしました）":""),"ok");
+  tryJoin();
+}
+function saveRoster(){ try{ localStorage.setItem(ROSTER_KEY, JSON.stringify(ROSTER)); }catch(e){} }
+function onKeepChange(){ if($("keep-roster").checked) saveRoster(); else try{ localStorage.removeItem(ROSTER_KEY); }catch(e){} }
+function clearRoster(){
+  ROSTER={}; $("keep-roster").checked=false;
+  try{ localStorage.removeItem(ROSTER_KEY); }catch(e){}
+  msg("roster-msg","名簿を消しました。");
+  $("out-card").classList.add("hidden");
+}
+
+/* ============ 回答 ============ */
+function loadAnswerText(text, fname){
+  const rows=parseCSV(text);
+  if(rows.length<2){ msg("answer-msg","中身が空です。","error"); return; }
+  ANS_HEAD=rows[0].map(h=>String(h).replace(/^\uFEFF/,"").trim());
+  ANS_ROWS=rows.slice(1);
+  if(headIndex(ANS_HEAD,["ID"])<0){ msg("answer-msg","見出しに <b>ID</b> の列が見つかりません。回答シートをそのままCSVで保存してください。","error"); return; }
+  msg("answer-msg",esc(fname||"")+" から <b>"+ANS_ROWS.length+"行</b> を読み込みました。","ok");
+  tryJoin();
+}
+
+/* ============ 突き合わせ ============ */
+function tryJoin(){
+  if(!Object.keys(ROSTER).length || !ANS_ROWS.length) return;
+  const iId=headIndex(ANS_HEAD,["ID"]);
+  const head=ANS_HEAD.slice();
+  head.splice(iId+1,0,"氏名");
+  const rows=ANS_ROWS.map(r=>{
+    const id=String(r[iId]||"").trim();
+    const row=r.slice();
+    row.splice(iId+1,0, ROSTER[id] || "（名簿にありません）");
+    return row;
+  });
+  JOINED={head:head, rows:rows, idCol:iId};
+  render();
+}
+
+function render(){
+  $("out-card").classList.remove("hidden");
+  const h=JOINED.head, rows=JOINED.rows;
+  const iId=JOINED.idCol, iName=iId+1;
+  const iOk=headIndex(h,["正誤"]), iTask=headIndex(h,["課題名"]),
+        iGrade=headIndex(h,["学年"]), iCls=headIndex(h,["組"]), iNo=headIndex(h,["出席番号"]),
+        iLate=headIndex(h,["時間外"]);
+
+  /* 生徒別サマリー */
+  const sum={};
+  rows.forEach(r=>{
+    const id=String(r[iId]||"").trim();
+    if(!sum[id]) sum[id]={name:r[iName],grade:iGrade<0?"":r[iGrade],cls:iCls<0?"":r[iCls],no:iNo<0?"":r[iNo],
+                          n:0,ok:0,tasks:{},late:0};
+    const s=sum[id]; s.n++;
+    if(iOk>=0 && String(r[iOk]).trim()==="○") s.ok++;
+    if(iTask>=0 && r[iTask]) s.tasks[r[iTask]]=1;
+    if(iLate>=0 && String(r[iLate]).trim()==="時間外") s.late++;
+  });
+  const list=Object.keys(sum).map(id=>({id:id,...sum[id]}))
+    .sort((a,b)=>String(a.grade).localeCompare(String(b.grade))||String(a.cls).localeCompare(String(b.cls))||
+                 (Number(a.no)||0)-(Number(b.no)||0)||a.id.localeCompare(b.id));
+  window.__summary=list;
+
+  $("summary-table").innerHTML =
+    "<tr><th>氏名</th><th>ID</th><th>学年</th><th>組</th><th>番号</th><th>課題数</th><th>問題数</th><th>正答数</th><th>正答率</th><th>時間外</th></tr>"+
+    list.map(s=>"<tr><td>"+esc(s.name)+"</td><td>"+esc(s.id)+"</td><td>"+esc(s.grade)+"</td><td>"+esc(s.cls)+
+      "</td><td>"+esc(s.no)+"</td><td>"+Object.keys(s.tasks).length+"</td><td>"+s.n+"</td><td>"+s.ok+
+      "</td><td>"+(s.n?Math.round(s.ok/s.n*100):0)+"%</td><td>"+(s.late?s.late:"")+"</td></tr>").join("");
+
+  /* 明細 */
+  const show=rows.slice(0,200);
+  $("detail-table").innerHTML =
+    "<tr>"+h.map(c=>"<th>"+esc(c)+"</th>").join("")+"</tr>"+
+    show.map(r=>"<tr>"+r.map((c,i)=>{
+      if(iOk>=0 && i===iOk) return "<td class='"+(String(c).trim()==="○"?"mark-ok":"mark-ng")+"'>"+esc(c)+"</td>";
+      return "<td>"+esc(c)+"</td>";
+    }).join("")+"</tr>").join("");
+
+  const miss=list.filter(s=>s.name==="（名簿にありません）").length;
+  $("out-info").innerHTML = rows.length+"行 ／ "+list.length+"人"+
+    (miss?" ／ <b style='color:var(--ng)'>名簿にないID "+miss+"人</b>":"")+
+    (rows.length>200?" ／ 明細は先頭200行のみ表示":"");
+}
+
+function downloadJoined(){
+  if(!JOINED) return;
+  const stamp=new Date().toISOString().slice(0,10).replace(/-/g,"");
+  downloadCSV("学習記録_氏名つき_"+stamp+".csv",[JOINED.head].concat(JOINED.rows));
+}
+function downloadSummary(){
+  if(!window.__summary) return;
+  const stamp=new Date().toISOString().slice(0,10).replace(/-/g,"");
+  const rows=[["氏名","ID","学年","組","出席番号","課題数","問題数","正答数","正答率","時間外"]];
+  window.__summary.forEach(s=>rows.push([s.name,s.id,s.grade,s.cls,s.no,
+    Object.keys(s.tasks).length,s.n,s.ok,(s.n?Math.round(s.ok/s.n*100):0)+"%",s.late||""]));
+  downloadCSV("生徒別サマリー_"+stamp+".csv",rows);
+}
+
+/* ============ ファイル入力 ============ */
+function bind(dropId, inputId, handler, errBox){
+  const drop=$(dropId), input=$(inputId);
+  input.addEventListener("change",e=>{
+    const f=e.target.files[0];
+    if(f) readFile(f, t=>handler(t,f.name), ()=>msg(errBox,"ファイルを開けませんでした。","error"));
+    e.target.value="";
+  });
+  ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+  ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+  drop.addEventListener("drop",e=>{
+    const f=e.dataTransfer.files[0];
+    if(f) readFile(f, t=>handler(t,f.name), ()=>msg(errBox,"ファイルを開けませんでした。","error"));
+  });
+}
+bind("drop-roster","file-roster",loadRosterText,"roster-msg");
+bind("drop-answer","file-answer",loadAnswerText,"answer-msg");
+
+/* ============ 起動 ============ */
+(function init(){
+  try{
+    const raw=localStorage.getItem(ROSTER_KEY);
+    if(raw){
+      const o=JSON.parse(raw);
+      if(o && typeof o==="object" && Object.keys(o).length){
+        ROSTER=o; $("keep-roster").checked=true;
+        msg("roster-msg","この端末に保存された名簿 <b>"+Object.keys(o).length+"人</b> を読み込みました。","ok");
+      }
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

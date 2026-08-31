@@ -1,0 +1,13 @@
+# 配布用アーカイブ
+*.zip
+
+# 実運用の設定を含むローカルファイル
+*.local.html
+*.local.gs
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ステップ学習アプリ</title>
+<style>
+:root{
+  --ink:#1b2430; --ink-2:#55606d; --line:#dfe4ea; --bg:#f4f6f9; --card:#ffffff;
+  --accent:#3f6fd8; --accent-soft:#e8eefb; --ok:#1a7f4b; --ng:#c0392b;
+  --radius:14px; --shadow:0 1px 2px rgba(20,30,45,.06), 0 8px 24px rgba(20,30,45,.06);
+}
+body[data-subject="国語"]{ --accent:#3f6fd8; --accent-soft:#e8eefb; }
+body[data-subject="算数"],
+body[data-subject="数学"]{ --accent:#1f8a5c; --accent-soft:#e4f4ec; }
+body[data-subject="英語"]{ --accent:#cc3b3b; --accent-soft:#fbe9e9; }
+
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-size:16px;line-height:1.7;-webkit-text-size-adjust:100%;
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;}
+.wrap{max-width:920px;margin:0 auto;padding:16px 16px 64px;}
+header{background:var(--card);border-bottom:3px solid var(--accent);position:sticky;top:0;z-index:20;}
+.header-inner{max-width:920px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.logo{font-weight:800;font-size:18px;letter-spacing:.04em;}
+.logo span{color:var(--accent);}
+nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+nav button{border:1px solid var(--line);background:#fff;color:var(--ink-2);border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer;font-family:inherit;}
+nav button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+nav button:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+h2{font-size:18px;margin:0 0 12px;}
+.muted{color:var(--ink-2);font-size:14px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px 22px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;min-height:48px;}
+.btn:hover{filter:brightness(1.07);}
+.btn.sub{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:600;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.row{display:flex;gap:10px;flex-wrap:wrap;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+label.field{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:4px;}
+input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);}
+.hidden{display:none !important;}
+.notice{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14px;margin-top:12px;}
+.notice.error{border-color:var(--ng);background:#fdeceb;color:#7d241c;}
+
+.ladder{display:flex;gap:4px;align-items:flex-end;margin:0 0 14px;}
+.rung{flex:1;text-align:center;font-size:11px;color:var(--ink-2);border-bottom:6px solid var(--line);padding-bottom:6px;}
+.rung.done{border-color:var(--accent-soft);}
+.rung.now{color:var(--accent);font-weight:800;border-color:var(--accent);}
+
+.qmeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.tag{background:#eef1f5;color:var(--ink-2);border-radius:6px;padding:2px 10px;font-size:12px;}
+.tag.strong{background:var(--accent);color:#fff;font-weight:700;}
+.qtext{font-size:20px;line-height:1.9;font-weight:600;margin:6px 0 20px;white-space:pre-wrap;}
+.phase{font-size:13px;font-weight:800;color:var(--accent);margin:0 0 8px;}
+.choices{display:grid;gap:10px;}
+.choice{display:flex;gap:12px;align-items:center;text-align:left;background:#fff;border:2px solid var(--line);border-radius:12px;padding:14px 16px;font-size:17px;cursor:pointer;font-family:inherit;min-height:56px;color:var(--ink);}
+.choice:hover{border-color:var(--accent);}
+.choice[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);}
+.choice .key{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.choice.correct{border-color:var(--ok);background:#e8f6ee;}
+.choice.wrong{border-color:var(--ng);background:#fdeceb;}
+.counter{font-size:13px;color:var(--ink-2);}
+
+.sentence{font-size:18px;line-height:2.2;background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;}
+.slot{display:inline-block;min-width:96px;text-align:center;border-bottom:3px solid var(--accent);padding:0 8px;margin:0 4px;font-weight:700;color:var(--accent);}
+.slot.empty{color:var(--ink-2);border-color:var(--line);}
+.slot.correct{border-color:var(--ok);color:var(--ok);}
+.slot.wrong{border-color:var(--ng);color:var(--ng);}
+.blankgroup{margin-bottom:16px;}
+.chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{border:2px solid var(--line);background:#fff;border-radius:999px;padding:10px 16px;font-size:16px;cursor:pointer;font-family:inherit;min-height:46px;color:var(--ink);}
+.chip:hover{border-color:var(--accent);}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:700;}
+.chip.correct{border-color:var(--ok);background:#e8f6ee;}
+.chip.wrong{border-color:var(--ng);background:#fdeceb;}
+
+.model{background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px;}
+.model dt{font-size:12px;font-weight:800;color:var(--ink-2);margin-top:8px;}
+.model dt:first-child{margin-top:0;}
+.model dd{margin:2px 0 0;white-space:pre-wrap;}
+.verdict{font-size:17px;font-weight:800;margin-top:14px;}
+.verdict.ok{color:var(--ok);}
+.verdict.ng{color:var(--ng);}
+.verdict .sub{font-size:13px;font-weight:600;color:var(--ink-2);margin-left:8px;}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;}
+.stat .num{font-size:28px;font-weight:800;color:var(--accent);line-height:1.2;}
+.stat .lbl{font-size:12px;color:var(--ink-2);}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:14px;}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top;}
+th{background:#f7f9fc;font-size:12px;color:var(--ink-2);white-space:nowrap;}
+.scroll{overflow-x:auto;}
+.mark-ok{color:var(--ok);font-weight:800;}
+.mark-ng{color:var(--ng);font-weight:800;}
+
+@media (max-width:520px){
+  .wrap{padding:12px 12px 48px;} .card{padding:16px;} .qtext{font-size:18px;}
+  .sentence{font-size:16px;} .logo{font-size:16px;} nav button{padding:7px 11px;font-size:13px;}
+}
+</style>
+</head>
+<body data-subject="国語">
+
+<header>
+  <div class="header-inner">
+    <div class="logo">ステップ<span>学習</span>アプリ</div>
+    <nav>
+      <button id="nav-home" onclick="showView('home')" aria-current="true">課題をえらぶ</button>
+      <button id="nav-study" onclick="showView('study')">学習する</button>
+      <button id="nav-result" onclick="showView('result')">結果</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ========== ホーム（ログイン・課題選択） ========== -->
+<section id="view-home">
+  <div class="card" id="login-card">
+    <h2>1. ログイン</h2>
+    <div id="login-form">
+      <p class="muted" style="margin-top:0">先生からわたされたIDとパスワードを入れてください。</p>
+      <div class="grid">
+        <div><label class="field" for="my-id">ID</label>
+          <input type="text" id="my-id" placeholder="れい：2026-3A-12" autocomplete="username"></div>
+        <div><label class="field" for="my-pw">パスワード</label>
+          <input type="password" id="my-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      </div>
+      <button class="btn" id="btn-login" onclick="doLogin()" style="margin-top:12px">ログイン</button>
+    </div>
+    <div id="login-ok" class="hidden">
+      <p style="margin:0"><b id="login-who"></b> でログイン中です。</p>
+      <button class="btn sub" onclick="doLogout()" style="margin-top:10px">ログアウト</button>
+    </div>
+    <div id="login-msg"></div>
+  </div>
+
+  <div class="card hidden" id="task-card">
+    <h2>2. 課題をえらぶ</h2>
+    <div id="task-list"><p class="muted">読み込み中です…</p></div>
+    <button class="btn sub" onclick="loadTasks()" style="margin-top:12px">課題を読み直す</button>
+  </div>
+
+  <div class="card">
+    <h2>STEPの意味</h2>
+    <div class="ladder">
+      <div class="rung">STEP1<br>答えをえらぶ</div>
+      <div class="rung">STEP2<br>説明をえらぶ</div>
+      <div class="rung">STEP3<br>説明を1つうめる</div>
+      <div class="rung">STEP4<br>説明を2つうめる</div>
+    </div>
+    <p class="muted" style="margin:0">答えを選ぶだけの段階から、答えの理由を自分で組み立てる段階へ進みます。すべて選択式です。</p>
+  </div>
+</section>
+
+<!-- ========== 学習 ========== -->
+<section id="view-study" class="hidden">
+  <div class="card" id="study-empty">
+    <h2>まだ学習が始まっていません</h2>
+    <p class="muted">「課題をえらぶ」から課題を選んで、はじめてください。</p>
+    <button class="btn sub" onclick="showView('home')">課題をえらぶ</button>
+  </div>
+
+  <div id="study-main" class="hidden">
+    <div class="card">
+      <div class="ladder" id="study-ladder"></div>
+      <div class="qmeta" id="q-meta"></div>
+      <p class="counter" id="q-counter"></p>
+      <p class="qtext" id="q-text"></p>
+
+      <div id="q-answer-area">
+        <p class="phase">まず、答えをえらぼう</p>
+        <div id="q-choices" class="choices"></div>
+      </div>
+
+      <div id="q-explain-area" class="hidden">
+        <p class="phase" id="q-phase-b"></p>
+        <div class="sentence" id="q-sentence"></div>
+        <div id="q-blanks"></div>
+      </div>
+
+      <div id="q-feedback" class="hidden">
+        <p class="verdict" id="q-verdict"></p>
+        <dl class="model" id="q-model"></dl>
+      </div>
+
+      <div class="row" style="margin-top:20px">
+        <button class="btn" id="btn-answer" onclick="submitAnswer()">回答</button>
+        <button class="btn sub" id="btn-back" onclick="backToAnswer()" style="display:none">答えにもどる</button>
+        <button class="btn" id="btn-next" onclick="nextQuestion()" style="display:none">次へ</button>
+        <button class="btn sub" onclick="endSession()">やめて結果を見る</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 結果 ========== -->
+<section id="view-result" class="hidden">
+  <div class="card" id="result-empty">
+    <h2>結果はまだありません</h2>
+    <p class="muted">学習を終えると、ここに成績が出ます。</p>
+  </div>
+  <div id="result-main" class="hidden">
+    <div class="card">
+      <h2>学習の結果</h2>
+      <div class="stats" id="result-stats"></div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn" id="btn-send" onclick="sendResult()">先生に送信</button>
+        <button class="btn sub" onclick="downloadResult()">結果をCSVで保存</button>
+        <button class="btn sub" onclick="showView('home')">課題一覧にもどる</button>
+      </div>
+      <div id="send-msg"></div>
+    </div>
+    <div class="card">
+      <h2>1問ごとの記録</h2>
+      <div class="scroll"><table id="result-table"></table></div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============ 設定（学校ごとにここだけ書き換える） ============ */
+const SEND_URL   = "https://script.google.com/macros/s/××××××/exec";  // 04の手順で自分のデプロイURLに置き換える
+const SEND_TOKEN = "××××××";  // コード.gs の TOKEN と同じ値にする
+
+/* ============ 定数 ============ */
+const COLUMNS = ["問題ID","学年","教科","単元","STEP","問題文",
+  "選択肢A","選択肢B","選択肢C","選択肢D","正解",
+  "説明文","空欄1選択肢","空欄1正解","空欄2選択肢","空欄2正解","模範解答","解説","タグ"];
+const ALIAS = {
+  "ID":"問題ID","id":"問題ID","問題番号":"問題ID",
+  "ステップ":"STEP","step":"STEP","Step":"STEP",
+  "問題":"問題文","設問":"問題文","科目":"教科",
+  "解答":"正解","答え":"正解","解答例":"模範解答",
+  "A":"選択肢A","B":"選択肢B","C":"選択肢C","D":"選択肢D",
+  "説明":"説明文","理由文":"説明文",
+  "空欄１選択肢":"空欄1選択肢","空欄１正解":"空欄1正解",
+  "空欄２選択肢":"空欄2選択肢","空欄２正解":"空欄2正解"
+};
+const STEP_NAME  = {1:"答えをえらぶ",2:"説明をえらぶ",3:"説明の空欄を1つうめる",4:"説明の空欄を2つうめる"};
+const STEP_SHORT = {1:"答えをえらぶ",2:"説明をえらぶ",3:"説明を1つうめる",4:"説明を2つうめる"};
+const STEP_BLANKS = {1:0,2:1,3:1,4:2};
+const KEYS = ["A","B","C","D"];
+const AUTH_KEY = "step-learning-auth";
+
+/* ============ 状態 ============ */
+let AUTH = {id:"", ticket:"", who:""};
+let CURRENT_TASK = null;
+let SESSION = null;
+
+const $ = id => document.getElementById(id);
+function escapeHTML(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function showView(name){
+  ["home","study","result"].forEach(v=>{
+    $("view-"+v).classList.toggle("hidden", v!==name);
+    $("nav-"+v).setAttribute("aria-current", String(v===name));
+  });
+  window.scrollTo(0,0);
+}
+
+/* ============ SHA-256（外部ライブラリ不要） ============ */
+function sha256(str){
+  function rr(n,x){ return (x>>>n)|(x<<(32-n)); }
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const utf8=unescape(encodeURIComponent(str));
+  const len=utf8.length;
+  const words=[];
+  for(let i=0;i<len;i++) words[i>>2]=(words[i>>2]||0)|((utf8.charCodeAt(i)&0xff)<<(24-(i%4)*8));
+  words[len>>2]=(words[len>>2]||0)|(0x80<<(24-(len%4)*8));
+  const total=((len+8)>>6)*16+16;
+  for(let i=0;i<total;i++) if(words[i]===undefined) words[i]=0;
+  words[total-1]=len*8;
+  words[total-2]=Math.floor(len*8/0x100000000);
+  const w=new Array(64);
+  for(let j=0;j<total;j+=16){
+    for(let i=0;i<16;i++) w[i]=words[j+i]|0;
+    for(let i=16;i<64;i++){
+      const s0=rr(7,w[i-15])^rr(18,w[i-15])^(w[i-15]>>>3);
+      const s1=rr(17,w[i-2])^rr(19,w[i-2])^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    let [a,b,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){
+      const S1=rr(6,e)^rr(11,e)^rr(25,e);
+      const ch=(e&f)^((~e)&g);
+      const t1=(h+S1+ch+K[i]+w[i])|0;
+      const S0=rr(2,a)^rr(13,a)^rr(22,a);
+      const mj=(a&b)^(a&c)^(b&c);
+      const t2=(S0+mj)|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+    }
+    H=[(H[0]+a)|0,(H[1]+b)|0,(H[2]+c)|0,(H[3]+d)|0,(H[4]+e)|0,(H[5]+f)|0,(H[6]+g)|0,(H[7]+h)|0];
+  }
+  return H.map(x=>("00000000"+(x>>>0).toString(16)).slice(-8)).join("");
+}
+
+/* ============ 通信 ============ */
+const today = () => { const d=new Date(); return d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0"); };
+const randHex = () => "N"+Date.now().toString(16)+Math.floor(Math.random()*1e9).toString(16);
+
+function loginMsg(html,err){ $("login-msg").innerHTML = html ? "<div class='notice"+(err?" error":"")+"'>"+html+"</div>" : ""; }
+function sendMsg(html,err){ $("send-msg").innerHTML = html ? "<div class='notice"+(err?" error":"")+"'>"+html+"</div>" : ""; }
+
+/* 送信は no-cors で応答を読めないため、読み取りはJSONPで行う */
+function jsonp(params,onOk,onErr,waitMs){
+  const cb="cb"+Date.now()+Math.floor(Math.random()*1000);
+  let done=false;
+  const sc=document.createElement("script");
+  const cleanup=()=>{ try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(sc.parentNode) sc.parentNode.removeChild(sc); };
+  window[cb]=res=>{ if(done)return; done=true; cleanup(); onOk(res); };
+  const qs=Object.keys(params).map(k=>encodeURIComponent(k)+"="+encodeURIComponent(params[k])).join("&");
+  sc.src=SEND_URL+"?"+qs+"&callback="+cb;
+  sc.onerror=()=>{ if(done)return; done=true; cleanup(); onErr("network"); };
+  document.body.appendChild(sc);
+  setTimeout(()=>{ if(done)return; done=true; cleanup(); onErr("timeout"); }, waitMs||10000);
+}
+
+/* ============ ログイン ============ */
+function doLogin(){
+  const id=($("my-id").value||"").trim(), pw=$("my-pw").value||"";
+  if(!id||!pw){ loginMsg("IDとパスワードを両方入れてください。",true); return; }
+  const nonce=randHex();
+  $("btn-login").disabled=true; loginMsg("ログイン中です…");
+  /* パスワードはURLに載せない。ハッシュにしてPOSTの本文で送る */
+  fetch(SEND_URL,{method:"POST",mode:"no-cors",
+    body:JSON.stringify({action:"login",token:SEND_TOKEN,role:"student",id:id,pwHash:sha256(pw),nonce:nonce})})
+    .then(()=>setTimeout(()=>fetchLoginResult(nonce,id),1400))
+    .catch(()=>{ $("btn-login").disabled=false; loginMsg("ログインできませんでした。ネットワークを確かめてください。",true); });
+}
+
+function fetchLoginResult(nonce,id){
+  jsonp({action:"loginResult",nonce:nonce},
+    res=>{
+      $("btn-login").disabled=false;
+      if(res && res.ok && res.role!=="teacher"){
+        AUTH={id:id,ticket:res.ticket,who:res.who};
+        try{ localStorage.setItem(AUTH_KEY,JSON.stringify({day:today(),auth:AUTH})); }catch(e){}
+        $("my-pw").value=""; loginMsg(""); renderAuth();
+      }else{
+        loginMsg(escapeHTML((res&&res.msg)||"IDかパスワードがちがいます。"),true);
+      }
+    },
+    ()=>{ $("btn-login").disabled=false; loginMsg("ログインの確認ができませんでした。もう一度おしてください。",true); });
+}
+
+function doLogout(){
+  AUTH={id:"",ticket:"",who:""}; CURRENT_TASK=null; SESSION=null;
+  try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
+  $("my-pw").value=""; loginMsg("");
+  $("study-main").classList.add("hidden"); $("study-empty").classList.remove("hidden");
+  $("result-main").classList.add("hidden"); $("result-empty").classList.remove("hidden");
+  renderAuth();
+}
+
+function renderAuth(){
+  const on=!!AUTH.ticket;
+  $("login-form").classList.toggle("hidden", on);
+  $("login-ok").classList.toggle("hidden", !on);
+  $("task-card").classList.toggle("hidden", !on);
+  if(on){ $("login-who").textContent = (AUTH.who ? AUTH.who+"（"+AUTH.id+"）" : AUTH.id); loadTasks(); }
+}
+
+function restoreAuth(){
+  try{
+    const raw=localStorage.getItem(AUTH_KEY);
+    if(raw){
+      const o=JSON.parse(raw);
+      if(o && o.day===today() && o.auth && o.auth.ticket) AUTH=o.auth;
+      else localStorage.removeItem(AUTH_KEY);
+    }
+  }catch(e){}
+  renderAuth();
+}
+
+/* ============ 課題 ============ */
+function loadTasks(){
+  if(!AUTH.ticket) return;
+  $("task-list").innerHTML="<p class='muted'>読み込み中です…</p>";
+  jsonp({action:"tasks",id:AUTH.id,ticket:AUTH.ticket},
+    res=>{
+      if(!res||!res.ok){ $("task-list").innerHTML="<div class='notice error'>"+escapeHTML((res&&res.msg)||"課題を取得できませんでした。")+"</div>"; return; }
+      renderTasks(res.tasks||[]);
+    },
+    ()=>{ $("task-list").innerHTML="<div class='notice error'>課題を取得できませんでした。通信を確かめてください。</div>"; },15000);
+}
+
+function renderTasks(tasks){
+  const el=$("task-list");
+  if(!tasks.length){ el.innerHTML="<p class='muted'>いま受けられる課題はありません。</p>"; return; }
+  el.innerHTML = tasks.map(t=>
+    "<div class='choice' style='cursor:default;align-items:flex-start'>"+
+      "<span class='key'>"+escapeHTML(String(t.subject||"?").slice(0,1))+"</span>"+
+      "<span style='flex:1'><b>"+escapeHTML(t.name)+"</b><br><span class='muted'>"+
+        escapeHTML(t.subject||"")+" "+escapeHTML(t.unit||"")+
+        (t.due?"／しめきり "+escapeHTML(t.due):"")+
+        (t.late?" <b style='color:var(--ng)'>しめきりを過ぎています</b>":"")+
+        (t.submitted?"／提出ずみ":"")+
+      "</span></span>"+
+      "<button class='btn' onclick=\"startTask('"+escapeHTML(t.id)+"')\">はじめる</button>"+
+    "</div>").join("");
+}
+
+function startTask(taskId){
+  $("task-list").insertAdjacentHTML("afterbegin","<div class='notice' id='task-loading'>問題を読み込んでいます…</div>");
+  jsonp({action:"questions",id:AUTH.id,ticket:AUTH.ticket,taskId:taskId},
+    res=>{
+      const box=$("task-loading"); if(box) box.remove();
+      if(!res||!res.ok){ alert((res&&res.msg)||"問題を読み込めませんでした。"); return; }
+      let bank;
+      try{ bank = rowsToQuestions(parseCSV(res.csv)).questions; }
+      catch(err){ alert("問題データを読めませんでした："+err.message); return; }
+      const t=res.task||{};
+      CURRENT_TASK={id:t.id||taskId, name:t.name||""};
+      /* 課題で指定された教科・単元にしぼる。一致するものが無ければファイル全体を使う */
+      let list=bank.filter(q=>(!t.subject||q.subject===t.subject)&&(!t.unit||q.unit===t.unit));
+      if(!list.length) list=bank;
+      if(String(t.order||"")==="順番どおり"){
+        list.sort((a,b)=>a.grade-b.grade||a.step-b.step||String(a.id).localeCompare(String(b.id),"ja"));
+      }else{
+        for(let i=list.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [list[i],list[j]]=[list[j],list[i]]; }
+      }
+      const cap=Number(t.count||0);
+      if(cap>0) list=list.slice(0,cap);
+      startSession(list);
+    },
+    ()=>{ const box=$("task-loading"); if(box) box.remove();
+          alert("問題を読み込めませんでした。通信を確かめてください。"); },20000);
+}
+
+/* ============ CSV解析 ============ */
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  text=String(text).replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=c;
+    }else{
+      if(c==='"') q=true;
+      else if(c===","){ row.push(cell); cell=""; }
+      else if(c==="\n"){ row.push(cell); rows.push(row); row=[]; cell=""; }
+      else cell+=c;
+    }
+  }
+  if(cell!=="" || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(v=>String(v).trim()!==""));
+}
+
+function normGrade(v){
+  const s=String(v||"").trim();
+  let m=s.match(/^(小|しょう)?\s*([1-6])/); if(s.indexOf("小")===0 && m) return Number(m[2]);
+  m=s.match(/^(中|ちゅう)\s*([1-3])/); if(m) return Number(m[2])+6;
+  m=s.match(/(\d+)/); if(m){ const n=Number(m[1]); if(n>=1&&n<=9) return n; }
+  return null;
+}
+function gradeLabel(n){ return n<=6 ? "小"+n : "中"+(n-6); }
+function normStep(v){ const m=String(v||"").match(/([1-4])/); return m?Number(m[1]):null; }
+function normText(s){
+  return String(s||"").trim().replace(/\s+/g,"")
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    .replace(/[、。，．,.]/g,"").toLowerCase();
+}
+function splitOptions(s){ return String(s||"").split(/[|｜]/).map(t=>t.trim()).filter(t=>t!==""); }
+function resolveIndex(raw, options){
+  const k=normText(raw);
+  if(k==="") return null;
+  const byKey={"a":0,"b":1,"c":2,"d":3,"1":0,"2":1,"3":2,"4":3,"ア":0,"イ":1,"ウ":2,"エ":3}[k];
+  const hit=options.findIndex(o=>normText(o)===k);
+  if(hit>=0) return hit;
+  if(byKey!==undefined && byKey<options.length) return byKey;
+  return null;
+}
+
+function rowsToQuestions(rows){
+  if(!rows.length) throw new Error("中身が空です。");
+  const head=rows[0].map(h=>{ const t=String(h||"").replace(/^\uFEFF/,"").trim(); return ALIAS[t]||t; });
+  const need=["学年","教科","単元","STEP","問題文"];
+  const missing=need.filter(c=>head.indexOf(c)<0);
+  if(missing.length) throw new Error("必要な列がありません："+missing.join("、"));
+  const idx={}; COLUMNS.forEach(c=>idx[c]=head.indexOf(c));
+  const out=[], skipped=[];
+  for(let r=1;r<rows.length;r++){
+    const get=c=>idx[c]>=0?String(rows[r][idx[c]]||"").trim():"";
+    const g=normGrade(get("学年")), st=normStep(get("STEP")), text=get("問題文");
+    if(!text||!g||!st){ skipped.push(r+1); continue; }
+    const choices=["選択肢A","選択肢B","選択肢C","選択肢D"].map(get).filter(c=>c!=="");
+    if(choices.length<2){ skipped.push(r+1); continue; }
+    const correct=resolveIndex(get("正解"), choices);
+    if(correct===null){ skipped.push(r+1); continue; }
+    const blanks=[]; let bad=false;
+    for(let b=1;b<=STEP_BLANKS[st];b++){
+      const opts=splitOptions(get("空欄"+b+"選択肢"));
+      const ans=resolveIndex(get("空欄"+b+"正解"), opts);
+      if(opts.length<2||ans===null){ bad=true; break; }
+      blanks.push({options:opts, correct:ans});
+    }
+    if(bad){ skipped.push(r+1); continue; }
+    out.push({ id:get("問題ID")||("Q"+r), grade:g, subject:get("教科")||"その他",
+      unit:get("単元")||"その他", step:st, text:text, choices:choices, correct:correct,
+      sentence:get("説明文"), blanks:blanks, model:get("模範解答"), explain:get("解説"), tag:get("タグ") });
+  }
+  if(!out.length) throw new Error("読み取れる問題がありませんでした。");
+  return {questions:out, skipped:skipped};
+}
+
+/* ============ 出題 ============ */
+/* 正解の位置が固定にならないよう、出題ごとに選択肢を並べ替える */
+function shuffled(n){
+  const idx=Array.from({length:n},(_,i)=>i);
+  for(let i=idx.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [idx[i],idx[j]]=[idx[j],idx[i]]; }
+  return idx;
+}
+function shuffleQuestion(q){
+  const c=shuffled(q.choices.length);
+  const nq={ id:q.id, grade:q.grade, subject:q.subject, unit:q.unit, step:q.step, text:q.text,
+    sentence:q.sentence, model:q.model, explain:q.explain, tag:q.tag,
+    choices: c.map(i=>q.choices[i]),
+    correct: c.indexOf(q.correct),
+    blanks: q.blanks.map(bl=>{
+      const b=shuffled(bl.options.length);
+      return { options: b.map(i=>bl.options[i]), correct: b.indexOf(bl.correct) };
+    })
+  };
+  return nq;
+}
+
+function startSession(list){
+  if(!list.length){ alert("この課題には出題できる問題がありません。"); return; }
+  SESSION={ list:list.map(shuffleQuestion), i:0, log:[], start:Date.now(), qStart:Date.now(), phase:"answer", picked:null, blanks:[] };
+  $("study-empty").classList.add("hidden");
+  $("study-main").classList.remove("hidden");
+  showView("study");
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const q=SESSION.list[SESSION.i];
+  document.body.setAttribute("data-subject", q.subject);
+  SESSION.phase="answer"; SESSION.picked=null; SESSION.blanks=q.blanks.map(()=>null); SESSION.qStart=Date.now();
+
+  $("study-ladder").innerHTML=[1,2,3,4].map(s=>
+    "<div class='rung "+(s<q.step?"done":"")+(s===q.step?" now":"")+"'>STEP"+s+"<br>"+STEP_SHORT[s]+"</div>").join("");
+  $("q-meta").innerHTML =
+    "<span class='tag'>"+gradeLabel(q.grade)+"</span><span class='tag'>"+escapeHTML(q.subject)+"</span>"+
+    "<span class='tag'>"+escapeHTML(q.unit)+"</span><span class='tag strong'>STEP"+q.step+" "+STEP_NAME[q.step]+"</span>";
+  $("q-counter").textContent=(SESSION.i+1)+" / "+SESSION.list.length+" 問目";
+  $("q-text").textContent=q.text;
+
+  $("q-choices").innerHTML=q.choices.map((c,i)=>
+    "<button class='choice' data-i='"+i+"' aria-pressed='false' onclick='pick("+i+")'>"+
+    "<span class='key'>"+KEYS[i]+"</span><span>"+escapeHTML(c)+"</span></button>").join("");
+  $("q-answer-area").classList.remove("hidden");
+  $("q-explain-area").classList.add("hidden");
+  $("q-feedback").classList.add("hidden");
+
+  const btn=$("btn-answer");
+  btn.style.display=""; btn.disabled=false;
+  btn.textContent = q.step===1 ? "回答" : "答えを決める";
+  $("btn-next").style.display="none";
+  $("btn-back").style.display="none";
+}
+
+function pick(i){
+  if(SESSION.phase!=="answer") return;
+  SESSION.picked=i;
+  document.querySelectorAll("#q-choices .choice").forEach(b=>b.setAttribute("aria-pressed", String(Number(b.dataset.i)===i)));
+}
+function pickBlank(b,i){
+  if(SESSION.phase!=="explain") return;
+  SESSION.blanks[b]=i;
+  document.querySelectorAll("#q-blanks .chip[data-b='"+b+"']").forEach(el=>
+    el.setAttribute("aria-pressed", String(Number(el.dataset.i)===i)));
+  renderSentence();
+}
+
+function sentenceParts(s){ return String(s||"").split(/(（[1１]）|\(1\)|①|（[2２]）|\(2\)|②)/); }
+function slotIndexOf(tok){ return /[1１①]/.test(tok) ? 0 : 1; }
+function isToken(t){ return /^(（[1１２2]）|\([12]\)|[①②])$/.test(t); }
+
+function renderSentence(marked){
+  const q=SESSION.list[SESSION.i];
+  const label=b=>{
+    const sel=SESSION.blanks[b];
+    const txt = sel===null ? "（　？　）" : q.blanks[b].options[sel];
+    let cls="slot"+(sel===null?" empty":"");
+    if(marked) cls += (sel===q.blanks[b].correct) ? " correct" : " wrong";
+    return "<span class='"+cls+"'>"+escapeHTML(txt)+"</span>";
+  };
+  const el=$("q-sentence");
+  if(!q.sentence){ el.innerHTML="説明："+label(0); return; }
+  el.innerHTML=sentenceParts(q.sentence).map(t=> isToken(t)?label(slotIndexOf(t)):escapeHTML(t)).join("");
+}
+
+function renderExplain(){
+  const q=SESSION.list[SESSION.i];
+  $("q-phase-b").textContent = q.step===2
+    ? "つぎに、その答えになる説明をえらぼう"
+    : "つぎに、説明の空らんをうめよう（"+q.blanks.length+"か所）";
+  $("q-blanks").innerHTML=q.blanks.map((bl,b)=>
+    "<div class='blankgroup'><p class='field'>"+(q.sentence?"空らん（"+(b+1)+"）":"説明としてただしいもの")+"</p>"+
+    "<div class='chips'>"+bl.options.map((o,i)=>
+      "<button class='chip' data-b='"+b+"' data-i='"+i+"' aria-pressed='"+(SESSION.blanks[b]===i)+"' onclick='pickBlank("+b+","+i+")'>"+escapeHTML(o)+"</button>").join("")+
+    "</div></div>").join("");
+  renderSentence(false);
+  $("q-explain-area").classList.remove("hidden");
+}
+
+function submitAnswer(){
+  const q=SESSION.list[SESSION.i];
+  if(SESSION.phase==="answer"){
+    if(SESSION.picked===null){ alert("答えをえらんでください。"); return; }
+    if(q.step===1){ grade(); return; }
+    SESSION.phase="explain";
+    document.querySelectorAll("#q-choices .choice").forEach(b=>b.disabled=true);
+    renderExplain();
+    $("btn-answer").textContent="回答";
+    $("btn-back").style.display="";
+    return;
+  }
+  if(SESSION.blanks.some(v=>v===null)){ alert("説明のらんをすべてえらんでください。"); return; }
+  grade();
+}
+
+function backToAnswer(){
+  if(SESSION.phase!=="explain") return;
+  SESSION.phase="answer";
+  document.querySelectorAll("#q-choices .choice").forEach(b=>b.disabled=false);
+  $("q-explain-area").classList.add("hidden");
+  $("btn-answer").textContent="答えを決める";
+  $("btn-back").style.display="none";
+  window.scrollTo(0,0);
+}
+
+function grade(){
+  const q=SESSION.list[SESSION.i];
+  let hit=(SESSION.picked===q.correct)?1:0;
+  const total=1+q.blanks.length;
+
+  document.querySelectorAll("#q-choices .choice").forEach(b=>{
+    const i=Number(b.dataset.i);
+    if(i===q.correct) b.classList.add("correct");
+    if(i===SESSION.picked && i!==q.correct) b.classList.add("wrong");
+    b.disabled=true;
+  });
+  q.blanks.forEach((bl,b)=>{
+    if(SESSION.blanks[b]===bl.correct) hit++;
+    document.querySelectorAll("#q-blanks .chip[data-b='"+b+"']").forEach(el=>{
+      const i=Number(el.dataset.i);
+      if(i===bl.correct) el.classList.add("correct");
+      if(i===SESSION.blanks[b] && i!==bl.correct) el.classList.add("wrong");
+      el.disabled=true;
+    });
+  });
+  if(q.blanks.length) renderSentence(true);
+
+  const ok=(hit===total);
+  const vd=$("q-verdict");
+  vd.className="verdict "+(ok?"ok":"ng");
+  vd.innerHTML=(ok?"全部正解！":"おしい")+(total>1?"<span class='sub'>"+hit+" / "+total+" か所</span>":"");
+
+  let dl="";
+  if(q.blanks.length){
+    const full=q.sentence
+      ? sentenceParts(q.sentence).map(t=> isToken(t)?q.blanks[slotIndexOf(t)].options[q.blanks[slotIndexOf(t)].correct]:t).join("")
+      : q.blanks[0].options[q.blanks[0].correct];
+    dl+="<dt>正しい説明</dt><dd>"+escapeHTML(full)+"</dd>";
+  }
+  if(q.model) dl+="<dt>模範解答</dt><dd>"+escapeHTML(q.model)+"</dd>";
+  if(q.explain) dl+="<dt>解説</dt><dd>"+escapeHTML(q.explain)+"</dd>";
+  $("q-model").innerHTML = dl || "<dd class='muted'>解説は登録されていません。</dd>";
+  $("q-feedback").classList.remove("hidden");
+
+  SESSION.pending={ q:q, ok:ok, hit:hit, total:total,
+    answer: KEYS[SESSION.picked]+"："+q.choices[SESSION.picked],
+    blanks: q.blanks.map((bl,b)=>bl.options[SESSION.blanks[b]]),
+    sec: Math.round((Date.now()-SESSION.qStart)/1000) };
+  SESSION.phase="done";
+  $("btn-answer").style.display="none";
+  $("btn-back").style.display="none";
+  const nx=$("btn-next");
+  nx.style.display=""; nx.disabled=false;
+  nx.textContent=(SESSION.i===SESSION.list.length-1)?"結果を見る":"次へ";
+}
+
+function nextQuestion(){
+  SESSION.log.push(SESSION.pending);
+  if(SESSION.i===SESSION.list.length-1){ endSession(); return; }
+  SESSION.i++; renderQuestion();
+}
+
+function endSession(){
+  if(!SESSION || !SESSION.log.length){ alert("記録がありません。"); return; }
+  renderResult(); showView("result");
+}
+
+/* ============ 結果 ============ */
+function renderResult(){
+  const log=SESSION.log;
+  const total=log.length, correct=log.filter(r=>r.ok).length;
+  const rate=total?Math.round(correct/total*100):0;
+  const sec=Math.round((Date.now()-SESSION.start)/1000);
+  const parts=log.reduce((a,r)=>a+r.total,0), hits=log.reduce((a,r)=>a+r.hit,0);
+  let streak=0,best=0;
+  log.forEach(r=>{ if(r.ok){streak++;best=Math.max(best,streak);} else streak=0; });
+
+  $("result-empty").classList.add("hidden");
+  $("result-main").classList.remove("hidden");
+  $("btn-send").disabled=false;
+  sendMsg(CURRENT_TASK&&CURRENT_TASK.name ? "課題「"+escapeHTML(CURRENT_TASK.name)+"」の結果です。" : "");
+
+  $("result-stats").innerHTML=[
+    ["問題数",total+""],["正答数",correct+""],["正答率",rate+"%"],
+    ["学習時間",Math.floor(sec/60)+"分"+(sec%60)+"秒"],["連続正解数",best+""],
+    ["えらんだ正解",hits+"/"+parts]
+  ].map(s=>"<div class='stat'><div class='num'>"+s[1]+"</div><div class='lbl'>"+s[0]+"</div></div>").join("");
+
+  $("result-table").innerHTML=
+    "<tr><th>#</th><th>学年</th><th>教科</th><th>単元</th><th>STEP</th><th>問題</th><th>えらんだ答え</th><th>えらんだ説明</th><th>結果</th><th>秒</th></tr>"+
+    log.map((r,i)=>"<tr><td>"+(i+1)+"</td><td>"+gradeLabel(r.q.grade)+"</td><td>"+escapeHTML(r.q.subject)+
+      "</td><td>"+escapeHTML(r.q.unit)+"</td><td>"+r.q.step+"</td><td>"+escapeHTML(r.q.text)+
+      "</td><td>"+escapeHTML(r.answer)+"</td><td>"+escapeHTML(r.blanks.join(" / "))+
+      "</td><td class='"+(r.ok?"mark-ok":"mark-ng")+"'>"+(r.ok?"○":"×")+" "+r.hit+"/"+r.total+
+      "</td><td>"+r.sec+"</td></tr>").join("");
+}
+
+function csvCell(v){ const s=String(v==null?"":v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function pad(n){ return String(n).padStart(2,"0"); }
+function downloadResult(){
+  const now=new Date();
+  const stamp=now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+"-"+pad(now.getHours())+pad(now.getMinutes());
+  const rows=[["実施日時","課題名","ID","問題ID","学年","教科","単元","STEP","問題文","えらんだ答え","えらんだ説明","正誤","正解数/設問数","所要秒"]];
+  SESSION.log.forEach(r=>rows.push([
+    now.toLocaleString("ja-JP"), CURRENT_TASK?CURRENT_TASK.name:"", AUTH.id, r.q.id,
+    gradeLabel(r.q.grade), r.q.subject, r.q.unit, "STEP"+r.q.step,
+    r.q.text, r.answer, r.blanks.join(" / "), r.ok?"○":"×", r.hit+"/"+r.total, r.sec
+  ]));
+  const body=rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const blob=new Blob(["\uFEFF"+body],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="学習結果_"+stamp+".csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ============ 送信 ============ */
+function sendResult(){
+  if(!AUTH.ticket){ alert("ログインしてから送信してください。"); showView("home"); return; }
+  const batch="B"+Date.now()+"-"+Math.floor(Math.random()*10000);
+  const payload={ action:"submit", token:SEND_TOKEN, id:AUTH.id, ticket:AUTH.ticket,
+    taskId: CURRENT_TASK?CURRENT_TASK.id:"", batch:batch, sentAt:new Date().toISOString(),
+    rows: SESSION.log.map(r=>[
+      r.q.id, gradeLabel(r.q.grade), r.q.subject, r.q.unit, "STEP"+r.q.step,
+      r.q.text, r.answer, r.blanks.join(" / "), r.ok?"○":"×", r.hit, r.total, r.sec ]) };
+  $("btn-send").disabled=true;
+  sendMsg("送信中です…");
+  fetch(SEND_URL,{method:"POST",mode:"no-cors",body:JSON.stringify(payload)})
+    .then(()=>setTimeout(()=>verifySend(batch,payload.rows.length),1500))
+    .catch(()=>{ $("btn-send").disabled=false;
+      sendMsg("送信できませんでした。もう一度おしてください。とどかない場合は「結果をCSVで保存」で先生にわたしてください。",true); });
+}
+
+function verifySend(batch,expected){
+  jsonp({action:"verify",batch:batch},
+    res=>{
+      if(res && res.count>=expected){ sendMsg("送信できました（"+res.count+"件）。"); }
+      else{
+        $("btn-send").disabled=false;
+        sendMsg("とどいた件数が合いません（"+((res&&res.count)||0)+"/"+expected+"件）。もう一度「先生に送信」をおしてください。ログインの有効期限が切れている場合は、ログインし直してください。",true);
+      }
+    },
+    ()=>{ $("btn-send").disabled=false;
+      sendMsg("送信できたか確認できませんでした。「結果をCSVで保存」で先生にわたしてください。",true); },10000);
+}
+
+/* ============ 起動 ============ */
+(function init(){
+  if(!SEND_URL){
+    loginMsg("このアプリを使うには、ファイル先頭の SEND_URL と SEND_TOKEN を設定してください。",true);
+    document.querySelectorAll("#login-form input, #btn-login").forEach(el=>el.disabled=true);
+    return;
+  }
+  restoreAuth();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ステップ学習アプリ 課題配信（先生用）</title>
+<style>
+:root{
+  --ink:#1b2430; --ink-2:#55606d; --line:#dfe4ea; --bg:#f4f6f9; --card:#fff;
+  --accent:#3f6fd8; --accent-soft:#e8eefb; --ok:#1a7f4b; --ng:#c0392b;
+  --shadow:0 1px 2px rgba(20,30,45,.06), 0 8px 24px rgba(20,30,45,.06);
+}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-size:15px;line-height:1.7;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;}
+header{background:var(--card);border-bottom:3px solid var(--accent);}
+.header-inner{max-width:1040px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.logo{font-weight:800;font-size:18px;}
+.logo span{color:var(--accent);}
+.who{margin-left:auto;font-size:14px;color:var(--ink-2);}
+nav{display:flex;gap:6px;margin-left:16px;}
+nav button{border:1px solid var(--line);background:#fff;color:var(--ink-2);border-radius:999px;padding:7px 14px;font-size:14px;cursor:pointer;font-family:inherit;}
+nav button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:ui-monospace,Consolas,"Courier New",monospace;line-height:1.7;background:#fff;color:var(--ink);resize:vertical;}
+h3{font-size:14px;margin:20px 0 8px;color:var(--ink-2);}
+.wrap{max-width:1040px;margin:0 auto;padding:16px 16px 64px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+h2{font-size:17px;margin:0 0 14px;}
+.muted{color:var(--ink-2);font-size:13px;}
+label.field{display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:4px;}
+input,select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink);}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px;}
+.btn.sub{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:600;}
+.btn.mini{padding:6px 12px;font-size:13px;min-height:auto;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.notice{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14px;margin-top:12px;}
+.notice.error{border-color:var(--ng);background:#fdeceb;color:#7d241c;}
+.hidden{display:none !important;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;white-space:nowrap;}
+th{background:#f7f9fc;font-size:12px;color:var(--ink-2);}
+.scroll{overflow-x:auto;}
+label.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;white-space:nowrap;}
+.filterbar{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;}
+.badge{border-radius:5px;padding:1px 8px;font-size:12px;font-weight:700;}
+.badge.on{background:#e8f6ee;color:var(--ok);}
+.badge.off{background:#eef1f5;color:var(--ink-2);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">ステップ学習 <span>先生用</span></div>
+    <nav id="page-nav" class="hidden">
+      <button id="nav-task" onclick="showPage('task')" aria-current="true">課題配信</button>
+      <button id="nav-prompt" onclick="showPage('prompt')">問題づくり</button>
+    </nav>
+    <div class="who" id="who"></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card" id="login-card">
+    <h2>ログイン</h2>
+    <div class="grid">
+      <div><label class="field" for="t-id">教員ID</label><input type="text" id="t-id" autocomplete="username"></div>
+      <div><label class="field" for="t-pw">パスワード</label>
+        <input type="password" id="t-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    </div>
+    <button class="btn" id="btn-login" onclick="doLogin()" style="margin-top:12px">ログイン</button>
+    <div id="login-msg"></div>
+  </div>
+
+  <div id="page-task">
+  <div class="card hidden" id="form-card">
+    <h2 id="form-title">課題をつくる</h2>
+    <div class="grid">
+      <div><label class="field" for="f-name">課題名（必須）</label><input type="text" id="f-name" placeholder="割合のまとめ"></div>
+      <div><label class="field" for="f-file">問題ファイル（必須）</label><select id="f-file"></select></div>
+      <div><label class="field" for="f-subject">教科</label><input type="text" id="f-subject" placeholder="算数"></div>
+      <div><label class="field" for="f-unit">単元</label><input type="text" id="f-unit" placeholder="割合"></div>
+      <div><label class="field" for="f-grade">対象学年（空欄＝全員）</label><input type="text" id="f-grade" placeholder="5"></div>
+      <div><label class="field" for="f-cls">対象組（カンマ区切り・空欄＝全員）</label><input type="text" id="f-cls" placeholder="A,B"></div>
+      <div><label class="field" for="f-open">公開開始</label><input type="datetime-local" id="f-open"></div>
+      <div><label class="field" for="f-due">しめきり</label><input type="datetime-local" id="f-due"></div>
+      <div><label class="field" for="f-count">出題数</label>
+        <select id="f-count"><option>5</option><option selected>10</option><option>20</option><option value="0">ぜんぶ</option></select></div>
+      <div><label class="field" for="f-order">出題順</label>
+        <select id="f-order"><option>ランダム</option><option>順番どおり</option></select></div>
+      <div><label class="field" for="f-retry">再挑戦</label>
+        <select id="f-retry"><option>可</option><option>不可</option></select></div>
+      <div><label class="field" for="f-active">配信</label>
+        <select id="f-active"><option>○</option><option>×</option></select></div>
+    </div>
+    <p class="muted" style="margin-bottom:0">しめきりを過ぎた提出は拒否せず、「時間外」として記録されます。公開開始が空欄なら即時公開です。</p>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="btn-save" onclick="saveTask()">保存する</button>
+      <button class="btn sub" onclick="resetForm()">新規入力にもどす</button>
+      <span class="muted" id="edit-id"></span>
+    </div>
+    <div id="save-msg"></div>
+  </div>
+
+  <div class="card hidden" id="list-card">
+    <h2>配信中の課題</h2>
+    <div class="filterbar">
+      <div style="min-width:180px">
+        <label class="field" for="filter-subject">教科でしぼる</label>
+        <select id="filter-subject" onchange="applyFilter()"><option value="">すべての教科</option></select>
+      </div>
+      <label class="chk"><input type="checkbox" id="show-stopped" onchange="applyFilter()"> 停止した課題も表示する</label>
+      <span class="muted" id="filter-count"></span>
+    </div>
+    <div class="scroll"><table id="task-table"></table></div>
+    <button class="btn sub" onclick="loadTasks()" style="margin-top:12px">読み直す</button>
+  </div>
+  </div>
+
+  <div id="page-prompt" class="hidden">
+    <div class="card">
+      <h2>問題生成プロンプト作成</h2>
+      <p class="muted" style="margin-top:0">条件を入れると、生成AIにそのまま貼れる指示文ができます。出力されたCSVをDriveの問題フォルダに置くと、課題で選べるようになります。</p>
+      <div class="grid">
+        <div><label class="field" for="p-grade">学年</label><input type="text" id="p-grade" value="5年" oninput="buildPrompt()"></div>
+        <div><label class="field" for="p-subject">教科</label><input type="text" id="p-subject" value="算数" oninput="buildPrompt()"></div>
+        <div><label class="field" for="p-unit">単元</label><input type="text" id="p-unit" value="割合" oninput="buildPrompt()"></div>
+        <div><label class="field" for="p-level">難易度</label><input type="text" id="p-level" value="標準" oninput="buildPrompt()"></div>
+        <div><label class="field" for="p-num">問題数（1ブロック）</label><input type="text" id="p-num" value="5" oninput="buildPrompt()"></div>
+        <div><label class="field" for="p-start">開始する問題ID</label><input type="text" id="p-start" value="1" oninput="buildPrompt()"></div>
+        <div><label class="field" for="p-step">STEP</label>
+          <select id="p-step" onchange="buildPrompt()">
+            <option value="all">STEP1〜4をまんべんなく</option>
+            <option value="1">STEP1のみ</option><option value="2">STEP2のみ</option>
+            <option value="3">STEP3のみ</option><option value="4">STEP4のみ</option>
+          </select></div>
+      </div>
+      <div style="margin-top:12px">
+        <label class="field" for="p-content">内容（ねらい・扱う題材）</label>
+        <input type="text" id="p-content" value="百分率と小数の関係を使って求める場面" oninput="buildPrompt()">
+      </div>
+      <div style="margin-top:12px">
+        <label class="field" for="p-miss">この単元で起きやすい誤り（1行に1つ。空欄なら教科の一般的な誤りを使います）</label>
+        <textarea id="p-miss" rows="6" oninput="buildPrompt()" placeholder="もとにする量とくらべる量の混同（例：600円の30%を求めるのに600÷0.3をする）
+小数と百分率の変換ミス（例：0.4を4%とする）
+百分率をそのまま量として計算する（例：200円の20%増しを200＋20とする）"></textarea>
+      </div>
+      <h3>生成AIに貼りつける文</h3>
+      <textarea id="p-out" rows="20" readonly></textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="copyPrompt()">この文をコピー</button>
+        <button class="btn sub" onclick="downloadTemplate()">空のCSVひな形をダウンロード</button>
+      </div>
+      <div id="p-msg"></div>
+      <h3>作ったあとの手順</h3>
+      <ol class="muted" style="margin:0;padding-left:20px">
+        <li><b>Excelを開き、A1セルに貼り付ける</b>（メモ帳に貼って <b>.csv</b> で保存してもよい）</li>
+        <li>5問ずつ作る場合は、2回目以降は「開始する問題ID」を6・11…と進め、<b>同じCSVに追記</b>する</li>
+        <li>Excelなら「名前を付けて保存 → <b>CSV UTF-8（コンマ区切り）</b>」で保存する</li>
+        <li>ファイル名を <b>5年_算数_割合.csv</b> のように 学年_教科_単元 でつける</li>
+        <li>Driveの問題フォルダの<b>直下</b>にアップロードする（サブフォルダは読みません）</li>
+        <li>「課題配信」に戻り「読み直す」を押すと、問題ファイルの選択肢に出る</li>
+      </ol>
+      <div class="notice error" style="margin-top:14px">
+        <b>よくある失敗</b><br>
+        ① Googleスプレッドシートに貼ると、全部がA列に入って列に分かれません。使う場合は貼り付け後に
+        <b>データ → テキストを列に分割</b> を実行してください。<br>
+        ② 生成AIがMarkdownの表（縦棒区切り）で出したものは使えません。作り直させてください。<br>
+        ③ Driveにアップロードしたファイルがスプレッドシートに変換されると読めません。Driveの設定で
+        「アップロードしたファイルを変換する」をオフにしてください。
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============ 設定（index.html と同じ値にする） ============ */
+const SEND_URL   = "https://script.google.com/macros/s/××××××/exec";  // 04の手順で自分のデプロイURLに置き換える
+const SEND_TOKEN = "××××××";  // コード.gs の TOKEN と同じ値にする
+
+/* ============ SHA-256（外部ライブラリ不要） ============ */
+function sha256(str){
+  function rr(n,x){ return (x>>>n)|(x<<(32-n)); }
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const utf8=unescape(encodeURIComponent(str));
+  const len=utf8.length;
+  const words=[];
+  for(let i=0;i<len;i++) words[i>>2]=(words[i>>2]||0)|((utf8.charCodeAt(i)&0xff)<<(24-(i%4)*8));
+  words[len>>2]=(words[len>>2]||0)|(0x80<<(24-(len%4)*8));
+  const total=((len+8)>>6)*16+16;
+  for(let i=0;i<total;i++) if(words[i]===undefined) words[i]=0;
+  words[total-1]=len*8;
+  words[total-2]=Math.floor(len*8/0x100000000);
+  const w=new Array(64);
+  for(let j=0;j<total;j+=16){
+    for(let i=0;i<16;i++) w[i]=words[j+i]|0;
+    for(let i=16;i<64;i++){
+      const s0=rr(7,w[i-15])^rr(18,w[i-15])^(w[i-15]>>>3);
+      const s1=rr(17,w[i-2])^rr(19,w[i-2])^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    let [a,b,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){
+      const S1=rr(6,e)^rr(11,e)^rr(25,e);
+      const ch=(e&f)^((~e)&g);
+      const t1=(h+S1+ch+K[i]+w[i])|0;
+      const S0=rr(2,a)^rr(13,a)^rr(22,a);
+      const mj=(a&b)^(a&c)^(b&c);
+      const t2=(S0+mj)|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+    }
+    H=[(H[0]+a)|0,(H[1]+b)|0,(H[2]+c)|0,(H[3]+d)|0,(H[4]+e)|0,(H[5]+f)|0,(H[6]+g)|0,(H[7]+h)|0];
+  }
+  return H.map(x=>("00000000"+(x>>>0).toString(16)).slice(-8)).join("");
+}
+
+/* ============ 共通 ============ */
+let AUTH={id:"",ticket:"",who:""};
+const AUTH_KEY="step-learning-teacher-auth";
+const today=()=>{const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");};
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $=id=>document.getElementById(id);
+function msg(box,html,err){ $(box).innerHTML = html ? "<div class='notice"+(err?" error":"")+"'>"+html+"</div>" : ""; }
+
+function jsonp(params,onOk,onErr,waitMs){
+  const cb="cb"+Date.now()+Math.floor(Math.random()*1000);
+  let done=false;
+  const sc=document.createElement("script");
+  const cleanup=()=>{ try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(sc.parentNode) sc.parentNode.removeChild(sc); };
+  window[cb]=res=>{ if(done)return; done=true; cleanup(); onOk(res); };
+  const qs=Object.keys(params).map(k=>encodeURIComponent(k)+"="+encodeURIComponent(params[k])).join("&");
+  sc.src=SEND_URL+"?"+qs+"&callback="+cb;
+  sc.onerror=()=>{ if(done)return; done=true; cleanup(); onErr("network"); };
+  document.body.appendChild(sc);
+  setTimeout(()=>{ if(done)return; done=true; cleanup(); onErr("timeout"); }, waitMs||15000);
+}
+
+/* ============ ログイン ============ */
+function doLogin(){
+  const id=($("t-id").value||"").trim(), pw=$("t-pw").value||"";
+  if(!id||!pw){ msg("login-msg","教員IDとパスワードを入れてください。",true); return; }
+  const nonce="N"+Date.now().toString(16)+Math.floor(Math.random()*1e9).toString(16);
+  $("btn-login").disabled=true; msg("login-msg","ログイン中です…");
+  fetch(SEND_URL,{method:"POST",mode:"no-cors",
+    body:JSON.stringify({action:"login",token:SEND_TOKEN,role:"teacher",id:id,pwHash:sha256(pw),nonce:nonce})})
+    .then(()=>setTimeout(()=>{
+      jsonp({action:"loginResult",nonce:nonce},
+        res=>{
+          $("btn-login").disabled=false;
+          if(res&&res.ok&&res.role==="teacher"){
+            AUTH={id:id,ticket:res.ticket,who:res.who};
+            try{ localStorage.setItem(AUTH_KEY,JSON.stringify({day:today(),auth:AUTH})); }catch(e){}
+            $("t-pw").value=""; msg("login-msg",""); afterLogin();
+          }else{
+            msg("login-msg",esc((res&&res.msg)||"教員IDかパスワードがちがいます。"),true);
+          }
+        },
+        ()=>{ $("btn-login").disabled=false; msg("login-msg","ログインの確認ができませんでした。もう一度おしてください。",true); });
+    },1400))
+    .catch(()=>{ $("btn-login").disabled=false; msg("login-msg","通信できませんでした。",true); });
+}
+
+function afterLogin(){
+  $("login-card").classList.add("hidden");
+  $("form-card").classList.remove("hidden");
+  $("list-card").classList.remove("hidden");
+  $("page-nav").classList.remove("hidden");
+  $("who").innerHTML = esc(AUTH.who)+" ｜ <a href='#' onclick='doLogout();return false;'>ログアウト</a>";
+  showPage("task");
+  buildPrompt();
+  loadTasks();
+}
+function doLogout(){
+  AUTH={id:"",ticket:"",who:""};
+  try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
+  location.reload();
+}
+
+/* ============ 課題一覧 ============ */
+let FILES=[];
+function loadTasks(){
+  $("task-table").innerHTML="<tr><td class='muted'>読み込み中です…</td></tr>";
+  jsonp({action:"teacherTasks",id:AUTH.id,ticket:AUTH.ticket},
+    res=>{
+      if(!res||!res.ok){ $("task-table").innerHTML="<tr><td class='muted'>"+esc((res&&res.msg)||"取得できませんでした。")+"</td></tr>"; return; }
+      FILES=res.files||[];
+      $("f-file").innerHTML = FILES.length
+        ? FILES.map(f=>"<option>"+esc(f)+"</option>").join("")
+        : "<option value=''>（Driveフォルダに問題CSVがありません）</option>";
+      renderTasks(res.tasks||[]);
+    },
+    ()=>{ $("task-table").innerHTML="<tr><td class='muted'>取得できませんでした。通信を確かめてください。</td></tr>"; });
+}
+
+let ALL_TASKS=[];
+
+function renderTasks(tasks){
+  ALL_TASKS = tasks || [];
+  /* 教科の選択肢を課題から作る */
+  const subs=[...new Set(ALL_TASKS.map(t=>t.subject).filter(x=>x))].sort();
+  const sel=$("filter-subject"), keep=sel.value;
+  sel.innerHTML="<option value=''>すべての教科</option>"+subs.map(x=>"<option value='"+esc(x)+"'>"+esc(x)+"</option>").join("");
+  if(subs.indexOf(keep)>=0) sel.value=keep;
+  applyFilter();
+}
+
+function applyFilter(){
+  const sub=$("filter-subject").value;
+  const showStopped=$("show-stopped").checked;
+  const tasks=ALL_TASKS.filter(t=>
+    (!sub || t.subject===sub) && (showStopped || t.active==="○"));
+  const stopped=ALL_TASKS.filter(t=>t.active!=="○").length;
+  $("filter-count").textContent =
+    tasks.length+"件を表示中"+(stopped&&!showStopped ? "（停止中 "+stopped+"件は非表示）" : "");
+
+  if(!tasks.length){
+    $("task-table").innerHTML="<tr><td class='muted'>"+
+      (ALL_TASKS.length ? "この条件に当てはまる課題はありません。" : "まだ課題がありません。")+"</td></tr>";
+    window.__tasks=[]; return;
+  }
+  window.__tasks = tasks;
+  $("task-table").innerHTML =
+    "<tr><th>配信</th><th>課題名</th><th>教科</th><th>単元</th><th>対象</th><th>公開開始</th><th>しめきり</th><th>問題ファイル</th><th>担当</th><th></th></tr>" +
+    tasks.map((t,i)=>"<tr>"+
+      "<td><span class='badge "+(t.active==="○"?"on":"off")+"'>"+(t.active==="○"?"配信中":"停止")+"</span></td>"+
+      "<td>"+esc(t.name)+"</td><td>"+esc(t.subject)+"</td><td>"+esc(t.unit)+"</td>"+
+      "<td>"+esc((t.grade?t.grade+"年":"全")+(t.cls?" "+t.cls:""))+"</td>"+
+      "<td>"+esc(t.open)+"</td><td>"+esc(t.due)+"</td>"+
+      "<td>"+esc(t.file)+"</td><td>"+esc(t.owner)+"</td>"+
+      "<td><button class='btn sub mini' onclick='editTask("+i+")'>編集</button> "+
+      "<button class='btn sub mini' onclick='toggleActive("+i+")'>"+(t.active==="○"?"停止":"再開")+"</button></td></tr>").join("");
+}
+
+/* ============ 作成・編集 ============ */
+let EDIT_ID="";
+function editTask(i){
+  const t=window.__tasks[i];
+  EDIT_ID=t.id;
+  $("f-name").value=t.name; $("f-subject").value=t.subject; $("f-unit").value=t.unit;
+  $("f-grade").value=t.grade; $("f-cls").value=t.cls;
+  $("f-open").value=toLocalInput(t.open); $("f-due").value=toLocalInput(t.due);
+  $("f-count").value=String(t.count||10); $("f-order").value=t.order||"ランダム";
+  $("f-retry").value=t.retry||"可"; $("f-active").value=t.active||"○";
+  if(FILES.indexOf(t.file)>=0) $("f-file").value=t.file;
+  $("form-title").textContent="課題を編集する";
+  $("edit-id").textContent="編集中："+t.id;
+  window.scrollTo(0,0);
+}
+function toLocalInput(s){ return s ? s.replace(" ","T").slice(0,16) : ""; }
+function fromLocalInput(s){ return s ? s.replace("T"," ") : ""; }
+
+function resetForm(){
+  EDIT_ID="";
+  ["f-name","f-subject","f-unit","f-grade","f-cls","f-open","f-due"].forEach(id=>$(id).value="");
+  $("f-count").value="10"; $("f-order").value="ランダム"; $("f-retry").value="可"; $("f-active").value="○";
+  $("form-title").textContent="課題をつくる"; $("edit-id").textContent=""; msg("save-msg","");
+}
+
+function saveTask(){
+  const name=$("f-name").value.trim(), file=$("f-file").value;
+  if(!name){ msg("save-msg","課題名を入れてください。",true); return; }
+  if(!file){ msg("save-msg","問題ファイルをえらんでください。Driveフォルダに問題CSVを置いてから読み直してください。",true); return; }
+  const open=fromLocalInput($("f-open").value), due=fromLocalInput($("f-due").value);
+  if(open && due && open>due){ msg("save-msg","しめきりが公開開始より前になっています。",true); return; }
+
+  const task={ id:EDIT_ID, name:name, subject:$("f-subject").value.trim(), unit:$("f-unit").value.trim(),
+    file:file, grade:$("f-grade").value.trim(), cls:$("f-cls").value.trim(),
+    open:open, due:due, count:$("f-count").value, order:$("f-order").value,
+    retry:$("f-retry").value, active:$("f-active").value };
+
+  $("btn-save").disabled=true; msg("save-msg","保存しています…");
+  fetch(SEND_URL,{method:"POST",mode:"no-cors",
+    body:JSON.stringify({action:"saveTask",token:SEND_TOKEN,id:AUTH.id,ticket:AUTH.ticket,
+      teacherName:AUTH.who.replace(" 先生",""),task:task})})
+    .then(()=>setTimeout(()=>{
+      /* 応答は読めないため、一覧を取り直して反映を確認する */
+      jsonp({action:"teacherTasks",id:AUTH.id,ticket:AUTH.ticket},
+        res=>{
+          $("btn-save").disabled=false;
+          if(res&&res.ok){
+            const hit=(res.tasks||[]).some(t=>t.name===name && t.file===file);
+            FILES=res.files||FILES; renderTasks(res.tasks||[]);
+            if(hit){ resetForm(); msg("save-msg","保存しました。"); }
+            else msg("save-msg","保存を確認できませんでした。もう一度おしてください。",true);
+          }else{
+            msg("save-msg","保存を確認できませんでした。ログインし直してください。",true);
+          }
+        },
+        ()=>{ $("btn-save").disabled=false; msg("save-msg","保存を確認できませんでした。",true); });
+    },1800))
+    .catch(()=>{ $("btn-save").disabled=false; msg("save-msg","通信できませんでした。",true); });
+}
+
+/* ============ 配信の停止・再開 ============ */
+function toggleActive(i){
+  const t=window.__tasks[i];
+  const next = (t.active==="○") ? "×" : "○";
+  const word = (next==="×") ? "停止" : "再開";
+  const detail = (next==="×")
+    ? "課題「"+t.name+"」の配信を停止します。\n生徒の一覧からも、この画面の一覧からも見えなくなります。\nよろしいですか？"
+    : "課題「"+t.name+"」の配信を再開します。よろしいですか？";
+  if(!confirm(detail)) return;
+
+  const task={ id:t.id, name:t.name, subject:t.subject, unit:t.unit, file:t.file,
+    grade:t.grade, cls:t.cls, open:t.open, due:t.due, count:t.count,
+    order:t.order, retry:t.retry, active:next };
+
+  msg("save-msg", "配信を"+word+"しています…");
+  fetch(SEND_URL,{method:"POST",mode:"no-cors",
+    body:JSON.stringify({action:"saveTask",token:SEND_TOKEN,id:AUTH.id,ticket:AUTH.ticket,
+      teacherName:t.owner||AUTH.who.replace(" 先生",""),task:task})})
+    .then(()=>setTimeout(()=>{
+      /* 応答を読めないため、一覧を取り直して反映を確かめる */
+      jsonp({action:"teacherTasks",id:AUTH.id,ticket:AUTH.ticket},
+        res=>{
+          if(res&&res.ok){
+            FILES=res.files||FILES; renderTasks(res.tasks||[]);
+            const now=(res.tasks||[]).find(x=>x.id===t.id);
+            if(now && now.active===next){
+              msg("save-msg", next==="×"
+                ? "配信を停止しました。一覧からも消えています。もどすには「停止した課題も表示する」にチェックを入れてください。"
+                : "配信を再開しました。");
+            }
+            else msg("save-msg","反映を確認できませんでした。もう一度おしてください。",true);
+          }else{
+            msg("save-msg","反映を確認できませんでした。ログインし直してください。",true);
+          }
+        },
+        ()=>msg("save-msg","反映を確認できませんでした。",true));
+    },1800))
+    .catch(()=>msg("save-msg","通信できませんでした。",true));
+}
+
+/* ============ ページ切替 ============ */
+function showPage(name){
+  $("page-task").classList.toggle("hidden", name!=="task");
+  $("page-prompt").classList.toggle("hidden", name!=="prompt");
+  $("nav-task").setAttribute("aria-current", String(name==="task"));
+  $("nav-prompt").setAttribute("aria-current", String(name==="prompt"));
+  window.scrollTo(0,0);
+}
+
+/* ============ 問題づくり ============ */
+const COLUMNS = ["問題ID","学年","教科","単元","STEP","問題文",
+  "選択肢A","選択肢B","選択肢C","選択肢D","正解",
+  "説明文","空欄1選択肢","空欄1正解","空欄2選択肢","空欄2正解","模範解答","解説","タグ"];
+const STEP_NAME = {1:"答えをえらぶ",2:"説明をえらぶ",3:"説明の空欄を1つうめる",4:"説明の空欄を2つうめる"};
+
+function buildPrompt(){
+  const v=id=>$(id).value.trim();
+  const sel=$("p-step").value;
+  const num=Math.max(1, parseInt(v("p-num"),10)||5);
+  const start=Math.max(1, parseInt(v("p-start"),10)||1);
+  const grade=v("p-grade"), subject=v("p-subject"), unit=v("p-unit");
+
+  /* STEP内訳を問題数から自動計算する */
+  let breakdown;
+  if(sel==="all"){
+    const base=Math.floor(num/4), rem=num%4;
+    const n=[1,2,3,4].map((st,i)=>base+(i<rem?1:0));
+    breakdown = n.map((c,i)=>"STEP"+(i+1)+"を"+c+"問").filter((t,i)=>n[i]>0).join("・");
+  }else{
+    breakdown = "すべてSTEP"+sel+"（"+STEP_NAME[Number(sel)]+"）";
+  }
+
+  /* 誤りの一覧。未入力なら教科の一般的なものを使う */
+  const typed=$("p-miss").value.split(/\n+/).map(t=>t.trim()).filter(t=>t!=="");
+  const fallback = /算数|数学/.test(subject) ? [
+      "もとにする量とくらべる量の混同",
+      "単位や小数の位取りの誤り",
+      "計算の順序の誤り",
+      "たし算・ひき算とかけ算・わり算の取りちがえ"
+    ] : /理科/.test(subject) ? [
+      "原因と結果の逆転",
+      "見かけの変化と実際の変化の混同",
+      "似た現象との混同",
+      "条件の一部を読み落とす"
+    ] : /国語/.test(subject) ? [
+      "登場人物の気持ちの取りちがえ",
+      "前後の出来事の読みちがい",
+      "主語の取りちがえ",
+      "指示語が指す内容の取りちがえ"
+    ] : [
+      "似た用語との混同",
+      "条件の一部を読み落とす",
+      "原因と結果の取りちがえ",
+      "手順の順序の誤り"
+    ];
+  const missList = (typed.length?typed:fallback).map((t,i)=>(i+1)+". "+t).join("\n");
+  const missNote = typed.length ? "" :
+    "作問の前に、この単元で実際に起きやすい誤りをさらに3つ以上あげてから、誤答を作る。\n";
+
+  $("p-out").value =
+"あなたは" + grade + "向けの" + subject + "教材作成者です。以下の指示に従い、選択式の問題をCSV形式だけで出力してください。\n\n" +
+
+"【最重要ルール（出力する前に必ず読む）】\n" +
+"1. 出力はCSV本文のみ。あいさつ・説明・補足・件数報告・自己点検の結果は一切書かない。\n" +
+"2. 出力の1行目は下の見出し行を一字も変えずに書く。最後の行はデータ行で終わる。\n" +
+"3. コードブロック記号（半角バッククォート3つ）やMarkdownの表（|）は使わず、プレーンテキストのカンマ区切りで出力する。\n" +
+"4. 空行は入れない。1つの問題は必ず1行で書く。\n" +
+"5. すべての行を必ず19列にする。列数が19でない行を書いてはいけない。\n\n" +
+
+"【1行目の見出し（これをそのまま出力する）】\n" + COLUMNS.join(",") + "\n\n" +
+
+"【作成条件】\n" +
+"学年：" + grade + "／教科：" + subject + "／単元：" + unit +
+"／内容：" + v("p-content") + "／難易度：" + v("p-level") + "\n\n" +
+
+"【今回のブロック】\n" +
+"問題数：" + num + "問／問題ID：" + start + "〜" + (start+num-1) + "の連番／STEP内訳：" + breakdown + "\n\n" +
+
+"【STEPの定義】\n" +
+"STEP1：答えを4択から選ぶ。説明文・空欄1・空欄2の列は空欄にする。\n" +
+"STEP2：答えを4択から選び、そのあと「なぜその答えになるか」を説明する文全体を4択から選ぶ。説明文の列は空欄にし、空欄1選択肢に説明の候補4つを縦棒（|）で区切って書く。\n" +
+"STEP3：答えを4択から選び、説明文の中の空欄（１）を4択から選んで埋める。説明文の列に（１）を1か所だけ含む文を書き、空欄1選択肢に候補4つを縦棒（|）で区切って書く。\n" +
+"STEP4：答えを4択から選び、説明文の中の空欄（１）（２）をそれぞれ4択から選んで埋める。説明文の列に（１）（２）を1か所ずつ含む文を書き、空欄1選択肢・空欄2選択肢に候補4つずつを書く。\n\n" +
+
+"【説明文（理由）の作り方】\n" +
+"・説明の正解には、問題の正解そのものの言いかえを書かない。\n" +
+"・説明の正解では「どの計算を使ったか／どの条件を使ったか／なぜそうなるか」を述べる。\n" +
+"・問題の正解を見ただけで説明の正解が決まる問題にしてはいけない。\n" +
+"・空欄2では「観察できる事実／条件／次に起こる結果／関連する数量関係／途中の計算／判断の材料」のいずれかを問う。空欄1の言いかえや問題の正解の言いかえにしない。\n" +
+"・空欄2の観点は問題ごとに変える。「途中の計算」だけに偏らせず、「条件」「関連する数量関係」「判断の材料」からも選ぶ。\n" +
+"・同じ根拠の説明を、同じブロックの中で2問以上に使わない。\n\n" +
+
+"【問題のバリエーション】\n" +
+"・同じブロックの中で、同じ種類の問題や同じ考え方のパターンを連続して作らない。\n" +
+"・似た問題を2問作るときは、場面か、問う方向か、問う観点のどれかを必ず変える。\n\n" +
+
+"【誤答の作り方】\n" +
+"下の「この単元で起きやすい誤り」から必ず選んで、もっともらしい誤答にする。\n" +
+"すべての誤答に根拠を持たせる。どこから出た数字か分からない誤答は作らない。\n" +
+missNote + missList + "\n\n" +
+
+"【選択肢の品質ルール】\n" +
+"・選択肢A〜Dは4つ必ず入れる。正解はA〜Dの記号で書く。\n" +
+"・4つの選択肢は同じ長さ・同じ文体・同じ粒度にそろえる。長さや不自然さで正解が分かってはいけない。\n" +
+"・説明の選択肢は、4つとも同じ考え方の過程に見えるようにする。\n" +
+"・正解の位置はA〜Dにだいたい均等に配置する。1つの位置に偏らせない。同じ位置を連続する問題で続けて置かない。\n" +
+"・単元と無関係な文・あり得ない数・極端に短い文など「内容を理解しなくても消せる選択肢」を作ってはいけない。\n\n" +
+
+"【CSVの書き方】\n" +
+"・セルの中では半角カンマ（,）を使わない。文の区切りには全角の「、」と「。」を使う。これでダブルクォートなしでも正しく区切れる。\n" +
+"・どうしても半角カンマや改行を入れる必要がある場合だけ、そのセル全体を半角ダブルクォート（\"）で囲む。セル内で改行しない。\n" +
+"・縦棒（|）は空欄選択肢の区切りにだけ使い、それ以外の選択肢や文の中では使わない。\n" +
+"・空欄1正解・空欄2正解は、対応する選択肢の中の1つを一字も変えずにそのまま書く。\n" +
+"・問題文・説明文・解説は" + grade + "が読める語彙と漢字にする。\n" +
+"・解説は全問に書く。模範解答の列は空欄でよい。\n" +
+"・問題IDは指定された範囲の連番にする。タグは場面名ではなく観点を1語で入れる。\n\n" +
+
+"【出力例（形の参考。この内容をそのまま出力してはいけない）】\n" +
+COLUMNS.join(",") + "\n" +
+"1,5年,算数,割合,STEP1,30人のうち18人が虫めがねを持っています。持っている人の割合は何%ですか。,0.6%,6%,60%,600%,C,,,,,,,18÷30＝0.6で、小数を百分率に直すと60%になります。,百分率変換\n\n" +
+
+"【出力前の最終確認】\n" +
+"出力する前に全問で次の5点だけ確認する。確認結果は書かず、CSVだけを出力する。\n" +
+"・すべての行が19列になっているか\n" +
+"・1行目が見出し行と一字も違わないか\n" +
+"・空欄1正解・空欄2正解が選択肢と一字も違わず一致しているか\n" +
+"・正解の位置が偏っていないか（だいたい均等・同じ位置が連続していない）\n" +
+"・同じ考え方のパターンの問題が2問以上連続していないか";
+}
+
+function copyPrompt(){
+  const ta=$("p-out");
+  ta.select(); ta.setSelectionRange(0,99999);
+  let done=false;
+  try{ done=document.execCommand("copy"); }catch(e){}
+  msg("p-msg", done ? "コピーしました。生成AIの入力欄に貼り付けてください。"
+                    : "自動コピーができませんでした。文をドラッグして手動でコピーしてください。", !done);
+}
+
+function downloadTemplate(){
+  const rows=[COLUMNS,
+    ["1","5","算数","割合","STEP3","20の25%はいくつですか。","4","5","10","20","B",
+     "20を1とみたとき、25%は小数で（１）だから、20×（１）＝5 になります。",
+     "0.25|2.5|25|0.025","0.25","","","","百分率は100でわって小数になおします。","百分率"]];
+  const body=rows.map(r=>r.map(c=>{
+    const s=String(c==null?"":c);
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(",")).join("\r\n");
+  const blob=new Blob(["\uFEFF"+body],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="問題ひな形.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ============ 起動 ============ */
+(function init(){
+  if(!SEND_URL){
+    msg("login-msg","この画面を使うには、ファイル先頭の SEND_URL と SEND_TOKEN を設定してください。",true);
+    return;
+  }
+  try{
+    const raw=localStorage.getItem(AUTH_KEY);
+    if(raw){
+      const o=JSON.parse(raw);
+      if(o && o.day===today() && o.auth && o.auth.ticket){ AUTH=o.auth; afterLogin(); }
+      else localStorage.removeItem(AUTH_KEY);
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
